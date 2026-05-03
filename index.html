@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>TiFdizzymall-isometric</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero-image">
+      <img src="assets/dizzymall-reference.jpg" alt="Original Dizzy Mall reference image" />
+      <p class="hero-caption">Original reference image used for this TiFdizzymall isometric remake.</p>
+    </section>
+
+    <section class="hud">
+      <div class="title-block">
+        <h1><span>TiF</span>DIZZYMALL ISOMETRIC</h1>
+        <p class="subtitle">Explore the mall in a Batman-style isometric reinterpretation, meet shoppers, collect items, and wander the angled rooms.</p>
+      </div>
+      <div class="stats">
+        <div>Screen: <strong id="screenName">Atrium</strong></div>
+        <div>Inventory: <strong id="inventoryCount">0</strong></div>
+        <div>Objectives done: <strong id="objectivesDone">0</strong>/<strong id="objectivesTotal">0</strong></div>
+      </div>
+    </section>
+
+    <section class="game-shell">
+      <div class="game-column">
+        <div class="stage-wrap">
+          <canvas id="game" width="960" height="640" aria-label="TiFdizzymall game"></canvas>
+          <section id="dialogueOverlay" class="dialogue-overlay hidden" aria-live="polite">
+            <div class="dialogue-title" id="dialogueSpeaker">Someone</div>
+            <div class="dialogue-body" id="dialogueText">...</div>
+            <div class="dialogue-options" id="dialogueOptions"></div>
+          </section>
+        </div>
+
+        <section class="touch-controls" aria-label="Touch controls">
+          <div class="controls-top-row">
+            <div class="joystick-cluster">
+              <div class="joystick-title">🕹️ Left Thumb</div>
+              <div id="joystickBase" class="joystick-base">
+                <div id="joystickKnob" class="joystick-knob"></div>
+              </div>
+            </div>
+            <div class="jump-cluster">
+              <button id="jumpButton" class="touch-btn touch-btn-jump" data-touch="jump">🦘 JUMP</button>
+            </div>
+          </div>
+          <div class="action-cluster">
+            <div class="action-row action-row-dialogue">
+              <button class="touch-btn touch-btn-nav" data-touch="dialogue-up">⬆️ UP</button>
+              <button class="touch-btn touch-btn-nav" data-touch="dialogue-down">⬇️ DOWN</button>
+            </div>
+            <div class="action-row action-row-secondary">
+              <button class="touch-btn touch-btn-talk" data-touch="talk">💬 TALK</button>
+              <button class="touch-btn touch-btn-give" data-touch="give">🎁 GIVE</button>
+              <button class="touch-btn touch-btn-take" data-touch="take">🤏 TAKE</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="panel">
+        <h2>How to play</h2>
+        <ul>
+          <li>Move with the joystick or <b>W A S D</b> / arrow keys</li>
+          <li>The top-right button acts as interaction/select support during dialogue</li>
+          <li>Press <b>T</b> / <b>💬 TALK</b> near characters</li>
+          <li>Press <b>E</b> / <b>🤏 TAKE</b> near items</li>
+          <li>Press <b>G</b> / <b>🎁 GIVE</b> near a character to hand over the needed item</li>
+          <li>No timer, no ending — just explore the 10-screen mall and clear objectives when you feel like it</li>
+        </ul>
+        <button id="restart">Restart Adventure</button>
+        <div class="inventory-box">
+          <h3>Inventory</h3>
+          <ul id="inventoryList"><li>Empty pockets.</li></ul>
+        </div>
+        <div class="inventory-box">
+          <h3>Objectives</h3>
+          <ul id="objectiveList"><li>Talk to the mall visitors.</li></ul>
+        </div>
+        <div class="inventory-box">
+          <h3>Nearby</h3>
+          <ul id="nearbyList"><li>Walk up to someone or something interesting.</li></ul>
+        </div>
+        <p id="message" class="message">Walk around the atrium and press TALK when you meet someone.</p>
+      </aside>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
