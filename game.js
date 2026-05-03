@@ -18,6 +18,12 @@ const joystickKnobEl = document.getElementById('joystickKnob');
 const jumpButtonEl = document.getElementById('jumpButton');
 document.getElementById('restart').addEventListener('click', init);
 
+const backgroundImages = [1, 2, 3, 4].map((n) => {
+  const img = new Image();
+  img.src = `assets/isometric-bg-${n}.jpg`;
+  return img;
+});
+
 const W = canvas.width;
 const H = canvas.height;
 const GRAVITY = 0.56;
@@ -30,6 +36,18 @@ const touchState = { left: false, right: false, jump: false, take: false, give: 
 const actionLatch = { take: false, give: false, talk: false };
 const joystickState = { active: false, x: 0, y: 0, pointerId: null };
 const dialogueControlLatch = { up: false, down: false, select: false };
+const sceneBackgroundIndex = {
+  atrium: 0,
+  dizzywear: 1,
+  games: 2,
+  kiddies: 3,
+  foodcourt: 0,
+  directory: 1,
+  fountain: 2,
+  roofgarden: 3,
+  toybridge: 0,
+  backhall: 1,
+};
 
 window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
@@ -678,6 +696,20 @@ function drawStar(x, y, r, color) {
   ctx.restore();
 }
 
+function drawSceneBackground(sc) {
+  const bg = backgroundImages[sceneBackgroundIndex[state.scene] ?? 0];
+  if (bg && bg.complete) {
+    ctx.drawImage(bg, 0, 0, W, H);
+    return;
+  }
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, sc.palette[0]);
+  grad.addColorStop(1, sc.palette[1]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
 function drawIsoFloor() {
   const top = isoProject(180, 230);
   const right = isoProject(830, 230);
@@ -1125,20 +1157,10 @@ function drawDialogueBox() {
 
 function draw() {
   const sc = scene();
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, sc.palette[0]); grad.addColorStop(1, sc.palette[1]);
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-  drawBackdropBands(sc);
-  drawDitherOverlay(0.12);
+  drawSceneBackground(sc);
 
   drawSceneTitle(sc);
-  drawIsoBackWalls(sc);
-  drawIsoFloor();
-  drawShopFront(sc);
   sc.escalators.forEach(drawEscalator);
-  sc.platforms.forEach(drawPlatform);
-  sc.trees.forEach(drawTree);
-  drawDecor(sc);
   const actors = [];
   for (const item of sc.items) if (!item.taken) actors.push({ kind: 'item', y: item.y, ref: item });
   sc.npcs.forEach(npc => actors.push({ kind: 'npc', y: npc.platformY, ref: npc }));
