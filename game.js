@@ -311,7 +311,7 @@ let state;
 function init() {
   state = {
     scene: 'atrium',
-    player: { x: 260, y: 430, w: 38, h: 50, vx: 0, vy: 0, onGround: true },
+    player: { x: 260, y: 430, w: 38, h: 50, vx: 0, vy: 0, onGround: true, z: 56 },
     inventory: [],
     actionText: 'The mall feels alive again. Explore and keep the platforming energy.',
     dialogue: null,
@@ -361,6 +361,11 @@ function isoProject(wx, wy, lift = 0) {
     y: ISO_ORIGIN_Y + (wx + wy) * ISO_SCALE_Y - lift,
   };
 }
+function worldLift(y) {
+  if (y <= 250) return 92;
+  if (y <= 430) return 56;
+  return 0;
+}
 
 function updatePanels() {
   screenNameEl.textContent = scene().name;
@@ -408,6 +413,8 @@ function nearestNpc() {
   const p = state.player;
   let best = null;
   for (const npc of scene().npcs) {
+    const npcLift = worldLift(npc.platformY);
+    if (Math.abs((p.z || 0) - npcLift) > 34) continue;
     const d = Math.hypot((p.x + p.w / 2) - npc.x, p.y - npc.platformY);
     if (d < 92 && (!best || d < best.d)) best = { npc, d };
   }
@@ -492,6 +499,8 @@ function nearestItem() {
   let best = null;
   for (const item of scene().items) {
     if (item.taken) continue;
+    const itemLift = worldLift(item.y);
+    if (Math.abs((p.z || 0) - itemLift) > 34) continue;
     const d = Math.hypot((p.x + p.w / 2) - item.x, p.y - item.y);
     if (d < 84 && (!best || d < best.d)) best = { item, d };
   }
@@ -553,6 +562,7 @@ function moveScene(direction) {
   p.vy = 0;
   p.vx = 0;
   p.onGround = true;
+  p.z = 56;
   updatePanels();
   setMessage(`You arrive in ${scene().name}.`);
 }
@@ -609,13 +619,28 @@ function update() {
   p.x = clamp(p.x + p.vx, 110, 860);
   p.y = clamp(p.y + p.vy, 235, 560);
 
+  let onEscalator = false;
   for (const esc of scene().escalators) {
-    const midX = (esc.x1 + esc.x2) / 2;
-    const midY = (esc.y1 + esc.y2) / 2;
-    if (Math.hypot(p.x - midX, p.y - midY) < 42) {
-      p.x += esc.dir * 0.8;
-      p.y -= 1.1;
+    const dx = esc.x2 - esc.x1;
+    const dy = esc.y2 - esc.y1;
+    const len2 = dx * dx + dy * dy || 1;
+    const t = clamp((((p.x - esc.x1) * dx) + ((p.y - esc.y1) * dy)) / len2, 0, 1);
+    const projX = esc.x1 + dx * t;
+    const projY = esc.y1 + dy * t;
+    const dist = Math.hypot(p.x - projX, p.y - projY);
+    if (dist < 34) {
+      onEscalator = true;
+      p.x += esc.dir * 0.85;
+      p.y -= 1.15;
+      p.z = 56 + t * 36;
+      break;
     }
+  }
+
+  if (!onEscalator) {
+    const targetZ = p.y <= 430 ? 56 : 0;
+    p.z += (targetZ - (p.z || 0)) * 0.25;
+    if (Math.abs(p.z - targetZ) < 0.5) p.z = targetZ;
   }
 
   if (p.x < 120) moveScene('left');
@@ -798,21 +823,34 @@ function drawCharacterSprite(cx, groundY, colors, scale = 3) {
 }
 
 function drawEscalator(e) {
-  const a = isoProject(e.x1, e.y1);
-  const b = isoProject(e.x2, e.y2, 34);
+  const a = isoProject(e.x1, e.y1, 0);
+  const b = isoProject(e.x2, e.y2, 36);
+  const railOffset = 12;
+  const nx = e.dir * railOffset;
+  const ny = -railOffset * 0.45;
+  const a2 = isoProject(e.x1 + nx, e.y1 + ny, 0);
+  const b2 = isoProject(e.x2 + nx, e.y2 + ny, 36);
+
+  ctx.fillStyle = '#74849a';
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y); ctx.lineTo(a2.x, a2.y); ctx.lineTo(b2.x, b2.y); ctx.lineTo(b.x, b.y);
+  ctx.closePath(); ctx.fill();
   ctx.strokeStyle = '#d7f7ff';
-  ctx.lineWidth = 18;
-  ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-  ctx.strokeStyle = '#6eb9d8';
-  ctx.lineWidth = 9;
-  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.strokeStyle = '#f4fcff';
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(a.x, a.y - 10); ctx.lineTo(b.x, b.y - 10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(a2.x, a2.y - 10); ctx.lineTo(b2.x, b2.y - 10); ctx.stroke();
+
   ctx.strokeStyle = '#28495d';
   ctx.lineWidth = 2;
-  for (let i = 0; i <= 16; i++) {
-    const t = i / 16;
-    const p = isoProject(e.x1 + (e.x2 - e.x1) * t, e.y1 + (e.y2 - e.y1) * t, 34 * t);
-    ctx.beginPath(); ctx.moveTo(p.x - 9, p.y + 7); ctx.lineTo(p.x + 9, p.y - 7); ctx.stroke();
+  for (let i = 0; i <= 18; i++) {
+    const t = i / 18;
+    const p1 = isoProject(e.x1 + (e.x2 - e.x1) * t, e.y1 + (e.y2 - e.y1) * t, 36 * t);
+    const p2 = isoProject(e.x1 + nx + (e.x2 - e.x1) * t, e.y1 + ny + (e.y2 - e.y1) * t, 36 * t);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
   }
 }
 
@@ -873,20 +911,29 @@ function drawShopFront(sc) {
 }
 
 function drawPlatform(plat) {
-  const a = isoProject(plat.x, plat.y);
-  const b = isoProject(plat.x + plat.w, plat.y);
-  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  const lift = worldLift(plat.y);
+  const a = isoProject(plat.x, plat.y, lift);
+  const b = isoProject(plat.x + plat.w, plat.y, lift);
+  const c = isoProject(plat.x + plat.w, plat.y + plat.h, lift);
+  const d = isoProject(plat.x, plat.y + plat.h, lift);
+  ctx.fillStyle = lift > 0 ? '#d8dde8' : '#c6cad4';
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.stroke();
+  if (lift > 0) {
+    ctx.fillStyle = '#8f98aa';
+    ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(c.x, c.y); ctx.lineTo(c.x, c.y + 12); ctx.lineTo(d.x, d.y + 12); ctx.closePath(); ctx.fill();
+  }
 }
 
 function drawItem(item) {
-  const p = isoProject(item.x, item.y, 22);
+  const p = isoProject(item.x, item.y, 22 + worldLift(item.y));
   drawItemSprite({ ...item, x: p.x, y: p.y });
 }
 
 function drawNpc(npc) {
-  const p = isoProject(npc.x, npc.platformY, 28);
+  const p = isoProject(npc.x, npc.platformY, 28 + worldLift(npc.platformY));
   drawCharacterSprite(p.x, p.y + 22, {
     body: npc.color,
     clothes: '#f7f1da',
@@ -901,7 +948,7 @@ function drawNpc(npc) {
 
 function drawPlayer() {
   const p = state.player;
-  const ip = isoProject(p.x + p.w / 2, p.y, 30);
+  const ip = isoProject(p.x + p.w / 2, p.y, 30 + (p.z || 0));
   ctx.fillStyle = 'white';
   ctx.beginPath();
   ctx.ellipse(ip.x, ip.y, 17, 21, 0, 0, Math.PI * 2);
@@ -920,7 +967,7 @@ function drawPlayer() {
 function drawDecor(sc) {
   for (const d of sc.decorations || []) {
     if (d.type === 'directory') {
-      const p = isoProject(d.x, d.y, 20);
+      const p = isoProject(d.x, d.y, 20 + worldLift(d.y));
       drawPixelCells(p.x, p.y, 4, [
         'yyyyyyyyyyyyyyyyyyyy',
         'ybbbbbbbbbbbbbbbbby',
@@ -932,7 +979,7 @@ function drawDecor(sc) {
       ], { y: '#f7efc8', b: '#222222', w: '#f5fbff', r: '#ff5f88' });
     }
     if (d.type === 'fountain') {
-      const p = isoProject(d.x, d.y, 18);
+      const p = isoProject(d.x, d.y, 18 + worldLift(d.y));
       drawPixelCells(p.x - 44, p.y - 28, 4, [
         '......wwww......',
         '.....wWWWWw.....',
@@ -943,7 +990,7 @@ function drawDecor(sc) {
       ], { w: '#dffcff', W: '#ffffff', s: '#9eefff', S: '#65d9ff' });
     }
     if (d.type === 'bench') {
-      const p = isoProject(d.x, d.y, 14);
+      const p = isoProject(d.x, d.y, 14 + worldLift(d.y));
       drawPixelCells(p.x, p.y - 24, 4, [
         'bbbbbbbbbbbbbbbbbbbbb',
         'bbhhhhhhhhhhhhhhhhhbb',
@@ -954,7 +1001,8 @@ function drawDecor(sc) {
     if (d.type === 'crates') {
       for (let i = 0; i < 3; i++) {
         const x = d.x + i * 34;
-        const p = isoProject(x, d.y - (i % 2) * 18, 10);
+        const yy = d.y - (i % 2) * 18;
+        const p = isoProject(x, yy, 10 + worldLift(yy));
         drawPixelCells(p.x, p.y, 3, [
           'oooooooooo',
           'oxxxxxxxxo',
@@ -966,7 +1014,7 @@ function drawDecor(sc) {
       }
     }
     if (d.type === 'bridgeRails') {
-      const p = isoProject(d.x - 200, d.y, 10);
+      const p = isoProject(d.x - 200, d.y, 10 + worldLift(d.y));
       drawPixelCells(p.x, p.y, 4, [
         'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         'b................................................b',
