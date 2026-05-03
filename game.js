@@ -367,6 +367,13 @@ function worldLift(y) {
   return 0;
 }
 
+function nearestWalkableY(y, currentZ = 0) {
+  const levels = [235, 430, 560];
+  if (currentZ > 70) return levels[0];
+  if (currentZ > 18) return levels[1];
+  return levels[2];
+}
+
 function updatePanels() {
   screenNameEl.textContent = scene().name;
   inventoryCountEl.textContent = state.inventory.length;
@@ -617,7 +624,8 @@ function update() {
   p.vx = moveX * 4.2;
   p.vy = moveY * 4.2;
   p.x = clamp(p.x + p.vx, 110, 860);
-  p.y = clamp(p.y + p.vy, 235, 560);
+  const intendedY = clamp(p.y + p.vy, 235, 560);
+  p.y = nearestWalkableY(intendedY, p.z || 0);
 
   let onEscalator = false;
   for (const esc of scene().escalators) {
@@ -630,16 +638,18 @@ function update() {
     const dist = Math.hypot(p.x - projX, p.y - projY);
     if (dist < 34) {
       onEscalator = true;
-      p.x += esc.dir * 0.85;
-      p.y -= 1.15;
-      p.z = 56 + t * 36;
+      p.x = projX + esc.dir * 8;
+      p.y = projY;
+      p.z = t < 0.52 ? 56 * (t / 0.52) : 56 + ((t - 0.52) / 0.48) * 36;
       break;
     }
   }
 
   if (!onEscalator) {
-    const targetZ = p.y <= 430 ? 56 : 0;
-    p.z += (targetZ - (p.z || 0)) * 0.25;
+    const snappedY = nearestWalkableY(p.y, p.z || 0);
+    p.y = snappedY;
+    const targetZ = worldLift(snappedY);
+    p.z += (targetZ - (p.z || 0)) * 0.35;
     if (Math.abs(p.z - targetZ) < 0.5) p.z = targetZ;
   }
 
@@ -825,15 +835,28 @@ function drawCharacterSprite(cx, groundY, colors, scale = 3) {
 function drawEscalator(e) {
   const a = isoProject(e.x1, e.y1, 0);
   const b = isoProject(e.x2, e.y2, 36);
-  const railOffset = 12;
+  const railOffset = 18;
   const nx = e.dir * railOffset;
-  const ny = -railOffset * 0.45;
+  const ny = -railOffset * 0.55;
   const a2 = isoProject(e.x1 + nx, e.y1 + ny, 0);
   const b2 = isoProject(e.x2 + nx, e.y2 + ny, 36);
+  const topLanding = isoProject(e.x2 + nx * 0.5, e.y2 + ny * 0.5, 42);
+  const bottomLanding = isoProject(e.x1 + nx * 0.5, e.y1 + ny * 0.5, 4);
 
-  ctx.fillStyle = '#74849a';
+  ctx.fillStyle = '#667588';
   ctx.beginPath();
   ctx.moveTo(a.x, a.y); ctx.lineTo(a2.x, a2.y); ctx.lineTo(b2.x, b2.y); ctx.lineTo(b.x, b.y);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#8c98a8';
+  ctx.beginPath();
+  ctx.moveTo(bottomLanding.x - 14, bottomLanding.y + 4);
+  ctx.lineTo(a.x, a.y); ctx.lineTo(a2.x, a2.y);
+  ctx.lineTo(bottomLanding.x + 14, bottomLanding.y - 4);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(topLanding.x - 14, topLanding.y + 4);
+  ctx.lineTo(b.x, b.y); ctx.lineTo(b2.x, b2.y);
+  ctx.lineTo(topLanding.x + 14, topLanding.y - 4);
   ctx.closePath(); ctx.fill();
   ctx.strokeStyle = '#d7f7ff';
   ctx.lineWidth = 3;
@@ -852,6 +875,10 @@ function drawEscalator(e) {
     const p2 = isoProject(e.x1 + nx + (e.x2 - e.x1) * t, e.y1 + ny + (e.y2 - e.y1) * t, 36 * t);
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
   }
+
+  ctx.fillStyle = '#dfeaf4';
+  ctx.fillRect(topLanding.x - 10, topLanding.y - 2, 20, 4);
+  ctx.fillRect(bottomLanding.x - 10, bottomLanding.y - 2, 20, 4);
 }
 
 function drawTree(t) {
